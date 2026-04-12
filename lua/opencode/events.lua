@@ -23,6 +23,12 @@ local subscription_job_id = nil
 ---@type opencode.server.Server?
 M.connected_server = nil
 
+---Get the currently-connected server, if any.
+---@return opencode.server.Server?
+function M.current_server()
+  return M.connected_server
+end
+
 ---@param server opencode.server.Server
 function M.connect(server)
   M.disconnect()
@@ -71,6 +77,31 @@ function M.disconnect()
   end
 
   M.connected_server = nil
+end
+
+---Setup DirChanged autocmd to warn when CWD diverges from server CWD
+function M.setup_dir_changed_listener()
+  vim.api.nvim_create_autocmd("DirChanged", {
+    callback = function()
+      local new_cwd = vim.fn.getcwd()
+      local server = M.current_server()
+      
+      if server and server.cwd then
+        local server_cwd = vim.fn.resolve(server.cwd)
+        local nvim_cwd = vim.fn.resolve(new_cwd)
+        
+        if server_cwd ~= nvim_cwd then
+          vim.notify(
+            "Neovim CWD changed to " .. new_cwd ..
+            ", but opencode server in " .. server.cwd ..
+            ". Using absolute paths.",
+            vim.log.levels.WARN,
+            { title = "opencode" }
+          )
+        end
+      end
+    end,
+  })
 end
 
 return M

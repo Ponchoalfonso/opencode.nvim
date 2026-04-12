@@ -277,10 +277,28 @@ function Context.format(loc, args)
     return nil
   end
 
-  local result = ""
+   local result = ""
 
-  local absolute_path = vim.fn.fnamemodify(filepath, ":p:~")
-  result = result .. absolute_path
+   local current_server = require("opencode.events").current_server()
+   local cwd_match = false
+   
+   if current_server and current_server.cwd then
+     -- Normalize paths for comparison (resolve symlinks, consistent separators)
+     local server_cwd = vim.fn.resolve(current_server.cwd)
+     local nvim_cwd = vim.fn.resolve(vim.fn.getcwd())
+     cwd_match = server_cwd == nvim_cwd
+   end
+
+    local absolute_path
+    if cwd_match then
+      -- Use relative notation when CWD match, prefix with @ for opencode
+      absolute_path = "@" .. vim.fn.fnamemodify(filepath, ":p:.")
+    else
+      -- Use home-relative when mismatch or no server
+      absolute_path = vim.fn.fnamemodify(filepath, ":p:~")
+    end
+    
+    result = result .. absolute_path
 
   if args and args.start_line then
     if args.end_line and args.start_line > args.end_line then
